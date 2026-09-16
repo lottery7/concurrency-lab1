@@ -36,13 +36,10 @@ public class Programmer {
 
     public int startEating() {
         int foodEaten = 0;
-        while (waiters.serve(programmerId)) {
+        while (foodEaten < foodQuota && waiters.serve(programmerId)) {
             spoons.withGrabbed(programmerId, this::eat);
             foodEaten++;
             discuss();
-            if (foodEaten >= foodQuota) {
-                break;
-            }
         }
         return foodEaten;
     }
