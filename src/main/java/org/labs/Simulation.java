@@ -1,8 +1,9 @@
 package org.labs;
 
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Phaser;
+import java.util.concurrent.StructuredTaskScope;
 import java.util.stream.IntStream;
 
 public class Simulation {
@@ -29,23 +30,36 @@ public class Simulation {
     }
 
     public List<Integer> run() {
-        var kitchen = new Kitchen(foodCount);
-        var spoons = new Spoons(programmersCount);
-        List<Future<Integer>> futures;
-        try (var waiters = new Waiters(waitersCount, kitchen);
-             var programmersThreadPool = Executors.newFixedThreadPool(programmersCount)) {
+        var foodSupplier = new FoodSupplier(foodCount);
+        var spoonsLock = new SpoonsLock(programmersCount);
+
+        try (var waitersService = new WaitersService(waitersCount, foodSupplier);
+             var scope = new StructuredTaskScope.ShutdownOnFailure()) {
             var programmers = IntStream.range(0, programmersCount)
-                    .mapToObj(i -> new Programmer(i, Math.ceilDiv(foodCount, programmersCount), waiters, spoons)
-                    ).toList();
-            futures = programmers.stream()
-                    .map(p -> programmersThreadPool.submit(p::startEating))
+                    .mapToObj(i -> new Programmer(i, waitersService, spoonsLock))
                     .toList();
+
+            var phaser = new Phaser(programmersCount + 1);
+            var subtasks = programmers.stream()
+                    .map(programmer -> scope.fork(() -> {
+                        phaser.arriveAndAwaitAdvance();
+                        return programmer.startEating();
+                    }))
+                    .toList();
+
+            phaser.arriveAndAwaitAdvance();
             System.out.println("All programmers started eating, waiting for them...");
+
+            scope.join();
+            scope.throwIfFailed();
+            System.out.println("Simulation finished");
+
+            return subtasks.stream().map(StructuredTaskScope.Subtask::get).toList();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Simulation interrupted", e);
+        } catch (ExecutionException e) {
+            throw new RuntimeException("Simulation execution failed", e);
         }
-        System.out.println("Simulation finished");
-
-        return futures.stream().map(Future::resultNow).toList();
     }
-
-
 }

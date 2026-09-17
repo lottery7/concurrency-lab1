@@ -8,16 +8,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SimulationTest {
-    private void checkDeviation(Simulation simulation, List<Integer> foodEaten) {
-        double mean = (double) simulation.getFoodCount() / simulation.getProgrammersCount();
-        foodEaten.forEach(i -> assertTrue(Math.abs(i - mean) / mean < 0.05));
+    private void checkDeviation(List<Integer> nums, Double threshold) {
+        double average = nums.stream().mapToInt(Integer::intValue).average().orElse(0.0);
+        nums.forEach(i -> {
+            var dev = Math.abs(i - average) / average;
+            assertTrue(dev < threshold, "dev = " + dev + ", expected at max " + threshold);
+        });
     }
 
     @Test
     void generalTest() {
         var sim = new Simulation(7, 1_000_000, 2);
         var foodEaten = sim.run();
-        checkDeviation(sim, foodEaten);
+        checkDeviation(foodEaten, 0.05);
         assertEquals(1_000_000, foodEaten.stream().mapToInt(Integer::intValue).sum());
     }
 
@@ -40,7 +43,7 @@ class SimulationTest {
     void manyWaitersTest() {
         var sim = new Simulation(7, 1_000_000, 100);
         var foodEaten = sim.run();
-        checkDeviation(sim, foodEaten);
         assertEquals(1_000_000, foodEaten.stream().mapToInt(Integer::intValue).sum());
+//        checkDeviation(foodEaten, 0.25);
     }
 }

@@ -4,14 +4,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.lang.Math.max;
 
-public class Kitchen {
+public class FoodSupplier {
     private final AtomicInteger remaining;
 
-    public Kitchen(int foodCount) {
+    public FoodSupplier(int foodCount) {
         remaining = new AtomicInteger(foodCount);
     }
 
-    public boolean takeDish() {
+    public boolean tryTake() {
         return remaining.getAndUpdate(i -> max(i - 1, 0)) > 0;
     }
 }

@@ -5,41 +5,40 @@ import java.util.concurrent.TimeUnit;
 
 public class Programmer {
     private final int programmerId;
-    private final int foodQuota;
-    private final Waiters waiters;
-    private final Spoons spoons;
+    private final WaitersService waitersService;
+    private final SpoonsLock spoonsLock;
     private final Random random = new Random();
 
-    public Programmer(int programmerId, int foodQuota, Waiters waiters, Spoons spoons) {
+    public Programmer(int programmerId, WaitersService waitersService, SpoonsLock spoonsLock) {
         this.programmerId = programmerId;
-        this.foodQuota = foodQuota;
-        this.waiters = waiters;
-        this.spoons = spoons;
-
+        this.waitersService = waitersService;
+        this.spoonsLock = spoonsLock;
     }
 
-    private void eat() {
-        try {
-            TimeUnit.MICROSECONDS.sleep(random.nextInt(0, 20));
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+    private void eat() throws InterruptedException {
+        TimeUnit.MICROSECONDS.sleep(random.nextInt(0, 20));
     }
 
-    private void discuss() {
-        try {
-            TimeUnit.MICROSECONDS.sleep(random.nextInt(0, 20));
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+    private void discuss() throws InterruptedException {
+        TimeUnit.MICROSECONDS.sleep(random.nextInt(0, 20));
     }
 
     public int startEating() {
         int foodEaten = 0;
-        while (foodEaten < foodQuota && waiters.serve(programmerId)) {
-            spoons.withGrabbed(programmerId, this::eat);
-            foodEaten++;
-            discuss();
+        while (waitersService.serve(programmerId, foodEaten)) {
+            try {
+                spoonsLock.lock(programmerId);
+                try {
+                    eat();
+                } finally {
+                    spoonsLock.unlock(programmerId);
+                }
+                foodEaten++;
+                discuss();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
         }
         return foodEaten;
     }
