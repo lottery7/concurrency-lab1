@@ -2,7 +2,6 @@ package org.labs;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Phaser;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.stream.IntStream;
 
@@ -12,9 +11,15 @@ public class Simulation {
     private final int waitersCount;
 
     public Simulation(int programmersCount, int foodCount, int waitersCount) {
-        if (programmersCount <= 0) throw new IllegalArgumentException("programmersCount must be > 0");
-        if (foodCount < 0) throw new IllegalArgumentException("foodCount must be >= 0");
-        if (waitersCount <= 0) throw new IllegalArgumentException("waitersCount must be > 0");
+        if (programmersCount <= 0) {
+            throw new IllegalArgumentException("programmersCount must be > 0");
+        }
+        if (foodCount < 0) {
+            throw new IllegalArgumentException("foodCount must be >= 0");
+        }
+        if (waitersCount <= 0) {
+            throw new IllegalArgumentException("waitersCount must be > 0");
+        }
 
         this.programmersCount = programmersCount;
         this.foodCount = foodCount;
@@ -39,15 +44,10 @@ public class Simulation {
                     .mapToObj(i -> new Programmer(i, waitersService, spoonsLock))
                     .toList();
 
-            var phaser = new Phaser(programmersCount + 1);
             var subtasks = programmers.stream()
-                    .map(programmer -> scope.fork(() -> {
-                        phaser.arriveAndAwaitAdvance();
-                        return programmer.startEating();
-                    }))
+                    .map(programmer -> scope.fork(programmer::startEating))
                     .toList();
 
-            phaser.arriveAndAwaitAdvance();
             System.out.println("All programmers started eating, waiting for them...");
 
             scope.join();
